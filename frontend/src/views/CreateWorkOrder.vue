@@ -34,11 +34,12 @@
           </el-radio-group>
         </el-form-item>
 
-        <el-form-item label="选择站点">
+        <el-form-item label="选择站点" :required="needStation">
           <el-select
             v-model="selectedStationId"
             placeholder="请选择站点"
             filterable
+            clearable
             style="width: 300px;"
             @change="handleStationChange"
           >
@@ -49,9 +50,12 @@
               :value="s.id"
             />
           </el-select>
+          <div style="color: #909399; font-size: 12px; margin-top: 4px;">
+            {{ stationTip }}
+          </div>
         </el-form-item>
 
-        <el-form-item label="关联枪口">
+        <el-form-item label="关联枪口" :required="needGun">
           <el-select
             v-model="form.gun_id"
             placeholder="请选择关联的枪口"
@@ -67,7 +71,9 @@
               :value="g.id"
             />
           </el-select>
-          <div style="color: #909399; font-size: 12px; margin-top: 4px;">枪口故障和通讯掉线建议关联具体枪口</div>
+          <div style="color: #909399; font-size: 12px; margin-top: 4px;">
+            {{ gunTip }}
+          </div>
         </el-form-item>
 
         <el-form-item label="派单给">
@@ -148,6 +154,29 @@ const rules = {
   description: [{ required: true, message: '请输入工单描述', trigger: 'blur' }]
 }
 
+const needStation = computed(() => form.order_type === 'gun_fault')
+const needGun = computed(() => form.order_type === 'gun_fault')
+
+const stationTip = computed(() => {
+  const tips = {
+    gun_fault: '枪口故障必须选择站点',
+    offline: '可选：如需定位具体充电桩请选择站点',
+    complaint: '可选：用户投诉可不选站点',
+    inspection: '建议选择巡检站点'
+  }
+  return tips[form.order_type] || ''
+})
+
+const gunTip = computed(() => {
+  const tips = {
+    gun_fault: '枪口故障必须选择具体枪口',
+    offline: '可选：已知具体枪口可直接选择',
+    complaint: '可选：已知具体枪口可直接选择',
+    inspection: '可选：巡检特定枪口可选择'
+  }
+  return tips[form.order_type] || ''
+})
+
 const availableGuns = computed(() => {
   if (!selectedStationId.value) return []
   return allGuns.value.filter(g => g.station_id === selectedStationId.value)
@@ -183,6 +212,18 @@ const fetchData = async () => {
 
 const handleSubmit = async () => {
   if (!formRef.value) return
+
+  if (form.order_type === 'gun_fault') {
+    if (!selectedStationId.value) {
+      ElMessage.warning('枪口故障必须选择站点')
+      return
+    }
+    if (!form.gun_id) {
+      ElMessage.warning('枪口故障必须选择具体枪口')
+      return
+    }
+  }
+
   await formRef.value.validate(async (valid) => {
     if (valid) {
       submitting.value = true

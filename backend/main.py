@@ -295,7 +295,11 @@ def list_work_orders(
 ):
     query = db.query(WorkOrder)
     if current_user.role == "repairer":
-        query = query.filter(WorkOrder.assignee_id == current_user.id)
+        from sqlalchemy import or_
+        query = query.filter(or_(
+            WorkOrder.assignee_id == current_user.id,
+            WorkOrder.assignee_id.is_(None)
+        ))
     if status:
         query = query.filter(WorkOrder.status == status)
     if order_type:
@@ -310,7 +314,7 @@ def get_work_order(order_id: int, db: Session = Depends(get_db), current_user: U
     order = db.query(WorkOrder).filter(WorkOrder.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="工单不存在")
-    if current_user.role == "repairer" and order.assignee_id != current_user.id:
+    if current_user.role == "repairer" and order.assignee_id is not None and order.assignee_id != current_user.id:
         raise HTTPException(status_code=403, detail="无权查看此工单")
     return order
 
@@ -363,7 +367,7 @@ def start_work_order(
     order = db.query(WorkOrder).filter(WorkOrder.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="工单不存在")
-    if current_user.role == "repairer" and order.assignee_id != current_user.id:
+    if current_user.role == "repairer" and order.assignee_id is not None and order.assignee_id != current_user.id:
         raise HTTPException(status_code=403, detail="无权操作此工单")
     order.status = "in_progress"
     if not order.assignee_id and current_user.role == "repairer":
@@ -382,7 +386,7 @@ def complete_work_order(
     order = db.query(WorkOrder).filter(WorkOrder.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="工单不存在")
-    if current_user.role == "repairer" and order.assignee_id != current_user.id:
+    if current_user.role == "repairer" and order.assignee_id is not None and order.assignee_id != current_user.id:
         raise HTTPException(status_code=403, detail="无权操作此工单")
     order.status = "completed"
 
